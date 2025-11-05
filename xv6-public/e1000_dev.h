@@ -4,7 +4,11 @@
 //
 // NOTE: Register macros use (byte_offset/4) because the driver
 //       indexes a volatile uint32* MMIO window (regs[idx]).
+
 //
+#pragma once
+void e1000_init(uint32 *xregs);
+int e1000_transmit(char *buf, int len);
 
 /* Registers */
 #define E1000_CTL      (0x00000/4)  /* Device Control Register - RW */
