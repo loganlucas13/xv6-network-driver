@@ -20,3 +20,10 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+
+
+// For this networking project
+#define SYS_bind      22
+#define SYS_unbind    23
+#define SYS_send      24
+#define SYS_recv      25

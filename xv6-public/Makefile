@@ -120,6 +120,7 @@ mkfs: mkfs.c fs.h
 UPROGS= \
 	_cat _echo _forktest _grep _init _kill _ln _ls _mkdir \
 	_rm _sh _stressfs _usertests _wc _zombie \
+	_nettest
 #
 
 fs.img: mkfs README $(UPROGS)
@@ -221,3 +222,19 @@ tar:
 	(cd /tmp; tar cf - xv6) | gzip >xv6-rev10.tar.gz  # the next one will be 10 (9/17)
 
 .PHONY: dist-test dist clean
+
+
+# ---- Networking for nettest.py (host<->guest via SLiRP) ----
+# Same math as nettest.py so ports match your UID.
+FWDPORT1 := $(shell expr $$(id -u) % 5000 + 25999)
+FWDPORT2 := $(shell expr $$(id -u) % 5000 + 30999)
+
+# Keep -nic none (disables default), then add a user netdev with UDP forwards:
+#   host:127.0.0.1:FWDPORT1 -> guest:2000
+#   host:127.0.0.1:FWDPORT2 -> guest:2001
+# NIC model is e1000 (what your driver handles).
+QEMUEXTRA += -netdev user,id=net0,hostfwd=udp::$(FWDPORT1)-:2000,hostfwd=udp::$(FWDPORT2)-:2001 -device e1000,netdev=net0
+
+
+NETTEST_PORT := $(shell expr $$(id -u) % 5000 + 25099)
+CFLAGS += -DNET_TESTS_PORT=$(NETTEST_PORT)
