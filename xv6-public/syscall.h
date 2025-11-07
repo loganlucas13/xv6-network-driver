@@ -23,7 +23,7 @@
 
 
 // For this networking project
-#define SYS_bind      22
-#define SYS_unbind    23
-#define SYS_send      24
-#define SYS_recv      25
+#define SYS_bind   22
+#define SYS_unbind 23
+#define SYS_send   24
+#define SYS_recv   25

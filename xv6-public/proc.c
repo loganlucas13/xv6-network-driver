@@ -336,10 +336,10 @@ sched(void)
 void
 yield(void)
 {
-  acquire(&ptable.lock);  //DOC: yieldlock
-  proc->state = RUNNABLE;
-  sched();
-  release(&ptable.lock);
+  acquire(&ptable.lock);   // Lock the process table
+  proc->state = RUNNABLE;  // Mark current process ready to run again
+  sched();                 // Call the scheduler
+  release(&ptable.lock);   // Unlock after returning from scheduler
 }
 
 // A fork child's very first scheduling by scheduler()

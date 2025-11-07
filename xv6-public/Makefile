@@ -238,3 +238,8 @@ QEMUEXTRA += -netdev user,id=net0,hostfwd=udp::$(FWDPORT1)-:2000,hostfwd=udp::$(
 
 NETTEST_PORT := $(shell expr $$(id -u) % 5000 + 25099)
 CFLAGS += -DNET_TESTS_PORT=$(NETTEST_PORT)
+
+
+# Print the current GDB port (used by gradelib.py)
+print-gdbport:
+	@echo $(GDBPORT)

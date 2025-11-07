@@ -27,12 +27,12 @@ int sleep(int);
 int uptime(void);
 
 
-#ifdef LAB_NET
+
 int bind(ushort);
 int unbind(ushort);
 int send(ushort, uint32, ushort, char *, uint32);
 int recv(ushort, uint32*, ushort*, char *, uint32);
-#endif
+
 
 // ulib.c
 int stat(char*, struct stat*);

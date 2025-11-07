@@ -10,7 +10,6 @@ import sys
 import time
 import os
 
-
 # qemu listens for packets sent to FWDPORT,
 # and re-writes them so they arrive in
 # xv6 with destination port 2000.
@@ -19,6 +18,9 @@ FWDPORT2 = (os.getuid() % 5000) + 30999
 
 # xv6's nettest.c tx sends to SERVERPORT.
 SERVERPORT = (os.getuid() % 5000) + 25099
+
+# default timeout (in seconds)
+TIMEOUT = 10
 
 def usage():
     sys.stderr.write("Usage: nettest.py txone\n")
@@ -41,12 +43,17 @@ if sys.argv[1] == "txone":
     #
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('127.0.0.1', SERVERPORT))
+    sock.settimeout(TIMEOUT)  # added timeout
     print("tx: listening for a UDP packet")
-    buf0, raddr0 = sock.recvfrom(4096)
-    if buf0 == b'txone':
-        print("txone: OK")
-    else:
-        print("txone: unexpected payload %s" % (buf0))
+    try:
+        buf0, raddr0 = sock.recvfrom(4096)
+        if buf0 == b'txone':
+            print("txone: OK")
+        else:
+            print("txone: unexpected payload %s" % (buf0))
+    except socket.timeout:
+        print(f"txone: no packet received within {TIMEOUT} seconds")
+
 elif sys.argv[1] == "rxone":
     #
     # send a single UDP packet to xv6 to test e1000_recv().
@@ -58,6 +65,7 @@ elif sys.argv[1] == "rxone":
     print("txone: sending one UDP packet")
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(b'xyz', ("127.0.0.1", FWDPORT1))
+
 elif sys.argv[1] == "rx":
     #
     # test the xv6 receive path by sending a slow
@@ -73,6 +81,7 @@ elif sys.argv[1] == "rx":
         sock.sendto(buf, ("127.0.0.1", FWDPORT1))
         time.sleep(1)
         i += 1
+
 elif sys.argv[1] == "rx2":
     #
     # send to two different UDP ports, to see
@@ -93,6 +102,7 @@ elif sys.argv[1] == "rx2":
 
         time.sleep(1)
         i += 1
+
 elif sys.argv[1] == "rxburst":
     #
     # send a big burst of packets to 2001, then
@@ -101,20 +111,17 @@ elif sys.argv[1] == "rxburst":
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     i = 0
     while True:
-        
         for ii in range(0, 32):
             txt = "packet %d" % (i)
-            # sys.stderr.write("%s\n" % txt)
             buf = txt.encode('ascii', 'ignore')
             sock.sendto(buf, ("127.0.0.1", FWDPORT2))
-
         txt = "packet %d" % (i)
         sys.stderr.write("%s\n" % txt)
         buf = txt.encode('ascii', 'ignore')
         sock.sendto(buf, ("127.0.0.1", FWDPORT1))
-
         time.sleep(1)
         i += 1
+
 elif sys.argv[1] == "tx":
     #
     # listen for UDP packets sent by xv6's nettest tx.
@@ -122,13 +129,18 @@ elif sys.argv[1] == "tx":
     #
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('127.0.0.1', SERVERPORT))
+    sock.settimeout(TIMEOUT)
     print("tx: listening for UDP packets")
-    buf0, raddr0 = sock.recvfrom(4096)
-    buf1, raddr1 = sock.recvfrom(4096)
-    if buf0 == b't 0' and buf1 == b't 1':
-        print("tx: OK")
-    else:
-        print("tx: unexpected packets %s and %s" % (buf0, buf1))
+    try:
+        buf0, raddr0 = sock.recvfrom(4096)
+        buf1, raddr1 = sock.recvfrom(4096)
+        if buf0 == b't 0' and buf1 == b't 1':
+            print("tx: OK")
+        else:
+            print("tx: unexpected packets %s and %s" % (buf0, buf1))
+    except socket.timeout:
+        print(f"tx: no packet received within {TIMEOUT} seconds")
+
 elif sys.argv[1] == "ping":
     #
     # listen for UDP packets sent by xv6's nettest ping,
@@ -137,22 +149,32 @@ elif sys.argv[1] == "ping":
     #
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('127.0.0.1', SERVERPORT))
+    sock.settimeout(TIMEOUT)
     print("ping: listening for UDP packets")
     while True:
-        buf, raddr = sock.recvfrom(4096)
-        sock.sendto(buf, raddr)
+        try:
+            buf, raddr = sock.recvfrom(4096)
+            sock.sendto(buf, raddr)
+        except socket.timeout:
+            print(f"ping: no packet received within {TIMEOUT} seconds (still waiting)")
+
 elif sys.argv[1] == "grade":
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(('127.0.0.1', SERVERPORT))
+    sock.settimeout(TIMEOUT)
 
     # first, listen for a single UDP packet sent by xv6,
     # in order to test only e1000_transmit(), in a situation
     # where perhaps e1000_recv() has not yet been implemented.
-    buf, raddr = sock.recvfrom(4096)
-    if buf == b'txone':
-        print("txone: OK")
-    else:
-        print("txone: received incorrect payload %s" % (buf))
+    try:
+        buf, raddr = sock.recvfrom(4096)
+        if buf == b'txone':
+            print("txone: OK")
+        else:
+            print("txone: received incorrect payload %s" % (buf))
+    except socket.timeout:
+        print(f"grade: no packet received for txone within {TIMEOUT} seconds")
+
     sys.stdout.flush()
     sys.stderr.flush()
 
@@ -163,8 +185,14 @@ elif sys.argv[1] == "grade":
     sock1.sendto(b'rxone', ("127.0.0.1", FWDPORT2))
 
     # third, act as a ping reflector.
+    sock.settimeout(TIMEOUT)
+    print("grade: acting as ping reflector (timeout enabled)")
     while True:
-        buf, raddr = sock.recvfrom(4096)
-        sock.sendto(buf, raddr)
+        try:
+            buf, raddr = sock.recvfrom(4096)
+            sock.sendto(buf, raddr)
+        except socket.timeout:
+            print(f"grade: no packet received within {TIMEOUT} seconds (still waiting)")
+
 else:
     usage()

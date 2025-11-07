@@ -1,0 +1,27 @@
+WARNING: Image format was not specified for 'xv6.img' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+WARNING: Image format was not specified for 'fs.img' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+xv6...
+Seems we are SMP, ncpu = 2
+
+cpu0: starting Fall 2025 xv6
+
+cpu1: starting
+cpu0: starting
+init: starting sh
+$ nettest grade
+cpu0: panic: Out of memory!
+ ffff800000100cd0
+ ffff800000104390
+ ffff80000010b86e
+ ffff8000001066b3
+ ffff80000010963f
+ ffff80000010820f
+ ffff80000010981d
+ 0000000000000000
+ 0000000000000000
+ 0000000000000000
+qemu: terminating on signal 15 from pid 8552 (make)
