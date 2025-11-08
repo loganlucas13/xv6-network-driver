@@ -16,6 +16,11 @@
 #include "mmu.h"
 #include "proc.h"
 #include "x86.h"
+#include "kbd.h"
+
+
+
+
 
 static void consputc(int);
 
@@ -204,7 +209,54 @@ struct {
   uint e;  // Edit index
 } input;
 
+
+#define HISTORY_SIZE 16
+static char history[HISTORY_SIZE][INPUT_BUF];
+static int  history_len = 0;   // number of stored commands
+static int  history_pos = -1;  // -1 = not browsing history
+static uint line_start = 0;    // offset in input.e space where current line begins
+
+static uint cursor = 0;   // current cursor position (logical index)
+
+
+
 #define C(x)  ((x)-'@')  // Control-x
+
+
+
+// Erase current line from screen and from input.buf back to line_start
+static void
+clear_line(void)
+{
+  while (input.e != line_start) {
+    input.e--;
+    consputc(BACKSPACE);
+  }
+  
+}
+
+// Load history[idx] into the current editing line
+static void
+load_history(int idx)
+{
+  int j;
+
+  if (idx < 0 || idx >= history_len)
+    return;
+
+  clear_line();
+
+  for (j = 0; history[idx][j] != 0 && input.e - input.r < INPUT_BUF; j++) {
+    char c = history[idx][j];
+    input.buf[input.e % INPUT_BUF] = c;
+    input.e++;
+    consputc(c);
+  }
+}
+
+
+
+
 
   void
 consoleintr(int (*getc)(void))
@@ -233,6 +285,30 @@ consoleintr(int (*getc)(void))
         consputc(BACKSPACE);
       }
       break;
+    case KEY_UP:
+      if (history_len > 0) {
+        // first time: jump to most recent command
+        if (history_pos == -1)
+          history_pos = history_len - 1;
+        else if (history_pos > 0)
+          history_pos--;   // move to older command
+
+        load_history(history_pos);
+      }
+      break;
+
+    case KEY_DN:
+      if (history_pos != -1) {
+        if (history_pos < history_len - 1) {
+          history_pos++;   // move to newer command
+          load_history(history_pos);
+        } else {
+          // at newest; leave history and go back to empty "live" line
+          history_pos = -1;
+          clear_line();
+        }
+      }
+      break;
     default:
       if (c != 0 && input.e-input.r < INPUT_BUF) {
         c = (c == '\r') ? '\n' : c;
@@ -241,9 +317,38 @@ consoleintr(int (*getc)(void))
         if (c == '\n' || c == C('D') || input.e == input.r+INPUT_BUF) {
           input.w = input.e;
           wakeup(&input.r);
+
+          if (c == '\n') {
+            // Extract the line we just finished (without '\n')
+            char line[INPUT_BUF];
+            int len = 0;
+            uint i;
+
+            for (i = line_start;
+                 i != input.e - 1 && len < INPUT_BUF - 1;
+                 i++) {
+              line[len++] = input.buf[i % INPUT_BUF];
+            }
+            line[len] = 0;
+
+            if (len > 0) {
+              // If history full, drop oldest (index 0) by shifting left
+              if (history_len == HISTORY_SIZE) {
+                for (int j = 1; j < HISTORY_SIZE; j++)
+                  safestrcpy(history[j-1], history[j], INPUT_BUF);
+                history_len--;
+              }
+              safestrcpy(history[history_len], line, INPUT_BUF);
+              history_len++;
+            }
+
+            history_pos = -1;       // leave history browse mode
+            line_start = input.e;   // next char is start of new line
+          }
         }
       }
       break;
+
     }
   }
   release(&input.lock);
