@@ -3,6 +3,10 @@
 #include "types.h"
 #include "user.h"
 #include "fcntl.h"
+#include "stat.h"
+#include "fs.h"
+
+
 
 // Parsed command representation
 #define EXEC  1
@@ -52,6 +56,22 @@ struct backcmd {
 int fork1(void);  // Fork but panics on failure.
 void panic(char*);
 struct cmd *parsecmd(char*);
+
+
+int
+strncmp(const char *p, const char *q, uint n)
+{
+  while(n > 0 && *p && *p == *q)
+    n--, p++, q++;
+  if(n == 0)
+    return 0;
+  return (uchar)*p - (uchar)*q;
+}
+
+
+int readline(char *buf, int nbuf);
+void autocomplete(char *buf, int *pn, int nbuf);
+
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winfinite-recursion"
@@ -138,11 +158,145 @@ getcmd(char *buf, int nbuf)
 {
   printf(2, "$ ");
   memset(buf, 0, nbuf);
-  gets(buf, nbuf);
-  if(buf[0] == 0) // EOF
+  if (readline(buf, nbuf) < 0)
+    return -1;
+  if (buf[0] == 0) // EOF or empty
     return -1;
   return 0;
 }
+
+
+
+// Read a line of input from fd 0 into buf, with simple editing:
+//  - backspace at end of line
+//  - TAB for autocomplete
+// Returns number of chars (including final '\n'), or -1 on EOF.
+int
+readline(char *buf, int nbuf)
+{
+  int n = 0;
+  char c;
+
+  while (n + 1 < nbuf) {
+    int cc = read(0, &c, 1);
+    if (cc < 1) {
+      // EOF
+      buf[0] = 0;
+      return -1;
+    }
+
+    if (c == '\r')
+      c = '\n';
+
+    if (c == '\n') {
+      // end of line
+      buf[n++] = c;
+      buf[n] = 0;
+      write(1, &c, 1);      // echo newline
+      return n;
+    } else if (c == '\b' || c == 0x7f) {
+      // backspace at end
+      if (n > 0) {
+        n--;
+        // erase from screen: backspace, space, backspace
+        write(1, "\b \b", 3);
+      }
+    } else if (c == '\t') {
+      // TAB = autocomplete
+      autocomplete(buf, &n, nbuf);
+    } else {
+      // ordinary character
+      buf[n++] = c;
+      write(1, &c, 1);      // echo
+    }
+  }
+
+  buf[n] = 0;
+  return n;
+}
+
+/// TAB completion: complete last word using the first matching
+// filename in "." and then print a new "$ " line with the
+// completed command.
+void
+autocomplete(char *buf, int *pn, int nbuf)
+{
+  int n = *pn;
+
+  // Find start of last word (after last space / tab)
+  int start = n;
+  while (start > 0 && buf[start-1] != ' ' && buf[start-1] != '\t')
+    start--;
+
+  int plen = n - start;
+  if (plen <= 0)
+    return;   // nothing to complete
+
+  if (plen > DIRSIZ)
+    plen = DIRSIZ;
+
+  // Copy prefix into a temporary buffer
+  char prefix[DIRSIZ+1];
+  memmove(prefix, buf + start, plen);
+  prefix[plen] = 0;
+
+  int fd = open(".", 0);
+  if (fd < 0)
+    return;
+
+  struct dirent de;
+  struct stat st;
+  char name[DIRSIZ+1];
+  int found = 0;
+
+  // Find the *first* filename that starts with prefix
+  while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+    if (de.inum == 0)
+      continue;
+
+    // dirent.name is not NUL-terminated; copy & terminate
+    memmove(name, de.name, DIRSIZ);
+    name[DIRSIZ] = 0;
+
+    if (stat(name, &st) < 0)
+      continue;
+
+    if (strncmp(name, prefix, plen) == 0) {
+      found = 1;
+      break;
+    }
+  }
+  close(fd);
+
+  if (!found)
+    return;
+
+  // Append the rest of the match into buf
+  int i = plen;
+  while (name[i] && *pn + 1 < nbuf) {
+    buf[*pn] = name[i++];
+    (*pn)++;
+  }
+
+  // Optional: add a space after completed word
+  if (*pn + 1 < nbuf) {
+    buf[*pn] = ' ';
+    (*pn)++;
+  }
+
+  // NUL-terminate for printing
+  buf[*pn] = 0;
+
+  // Print a *new* line with the completed command:
+  //   $ ec<TAB>
+  //   $ echo 
+  write(1, "\n$ ", 3);
+  write(1, buf, *pn);
+}
+
+
+
+
 
 int
 main(void)

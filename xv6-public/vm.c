@@ -432,14 +432,29 @@ bad:
 char*
 uva2ka(pml4e_t *pgdir, char *uva)
 {
+  // pte_t *pte;
+
+  // pte = walkpgdir(pgdir, uva, 0);
+  // if((*pte & PTE_P) == 0)
+  //   return 0;
+  // if((*pte & PTE_U) == 0)
+  //   return 0;
+  // return (char*)P2V(PTE_ADDR(*pte));
   pte_t *pte;
 
   pte = walkpgdir(pgdir, uva, 0);
-  if((*pte & PTE_P) == 0)
+  if (pte == 0)
     return 0;
-  if((*pte & PTE_U) == 0)
+  if ((*pte & PTE_P) == 0)
     return 0;
-  return (char*)P2V(PTE_ADDR(*pte));
+  if ((*pte & PTE_U) == 0)
+    return 0;
+
+  uint64 pa = PTE_ADDR(*pte);
+  if (pa >= PHYSTOP)
+    return 0;
+
+  return (char*)P2V(pa);
 }
 
 // Copy len bytes from p to user address va in page table pgdir.

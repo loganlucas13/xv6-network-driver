@@ -20,6 +20,15 @@ extern void syscall_trapret(void);
 
 static void wakeup1(void *chan);
 
+
+
+struct proc*
+myproc(void)
+{
+  return proc;
+}
+
+
 void
 pinit(void)
 {

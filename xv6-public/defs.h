@@ -119,6 +119,7 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+struct proc*    myproc(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -189,3 +190,18 @@ void            clearpteu(pml4e_t *pgdir, char *uva);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+
+
+
+// pci.c
+void            pci_init();
+
+// e1000.c
+void            e1000_init(uint32 *);
+void            e1000_intr(void);
+int             e1000_transmit(char *, int);
+
+// net.c
+void            netinit(void);
+void            net_rx(char *buf, int len);

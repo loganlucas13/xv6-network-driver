@@ -10,6 +10,7 @@ static void startothers(void);
 static void mpmain(void)  __attribute__((noreturn));
 extern pde_t *kpgdir;
 extern char end[]; // first address after kernel loaded from ELF file
+extern void pci_init(void);
 
 // Bootstrap processor starts running C code here.
 // Allocate a real stack and switch to it, first
@@ -28,6 +29,9 @@ main(void)
   ioapicinit();    // another interrupt controller
   consoleinit();   // console hardware
   uartinit();      // serial port
+
+  pci_init();     // scan PCI, init e1000
+
   pinit();         // process table
   binit();         // buffer cache
   fileinit();      // file table
@@ -36,6 +40,7 @@ main(void)
   kinit2();
   userinit();      // first user process
   mpmain();        // finish this processor's setup
+
 }
 
 // Other CPUs jump here from entryother.S.

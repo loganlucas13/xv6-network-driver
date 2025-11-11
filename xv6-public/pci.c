@@ -30,8 +30,7 @@
 #define PCI_CMD_IO       0x1
 #define PCI_CMD_MEM      0x2
 #define PCI_CMD_BUSMSTR  0x4
-
-extern void e1000_init(volatile uint32 *regs);
+extern void e1000_init(uint32 *regs);
 
 // read a 32-bit PCI config register
 static uint
@@ -68,17 +67,15 @@ pci_init(void)
       cmd |= (PCI_CMD_MEM | PCI_CMD_BUSMSTR);
       pci_write(0, dev, 0, PCI_COMMAND, cmd);
 
-      // read BAR0 (MMIO base)
       uint bar0 = pci_read(0, dev, 0, PCI_BAR0) & ~0xF;
-      cprintf("pci: e1000 BAR0 = 0x%x\n", bar0);
+      cprintf("pci: e1000 BAR0 phys=0x%x\n", bar0);
 
-      // read interrupt line (legacy INTx)
-      uint irq = pci_read(0, dev, 0, PCI_INT_LINE) & 0xFF;
-      cprintf("pci: e1000 IRQ line = %d\n", irq);
+      addr_t vbar = (addr_t)p2v((addr_t)bar0);
+      cprintf("pci: e1000 regs virt=%p\n", (void*)vbar);
 
-      // call e1000 driver with mapped MMIO base
-      volatile uint32 *regs = (volatile uint32*) P2V(bar0);
-      e1000_init(regs);
+      volatile uint32 *regs = (volatile uint32*) vbar;
+      e1000_init((uint32*)regs);
+
       return;
     }
   }

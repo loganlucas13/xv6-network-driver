@@ -231,7 +231,9 @@ clear_line(void)
   while (input.e != line_start) {
     input.e--;
     consputc(BACKSPACE);
+    
   }
+  cursor = line_start;
   
 }
 
@@ -252,7 +254,9 @@ load_history(int idx)
     input.e++;
     consputc(c);
   }
+  cursor = input.e;
 }
+
 
 
 
@@ -283,6 +287,12 @@ consoleintr(int (*getc)(void))
       if (input.e != input.w) {
         input.e--;
         consputc(BACKSPACE);
+      }
+      break;
+    case '\t':
+      // Just queue TAB into input buffer; don't echo it.
+      if (input.e - input.r < INPUT_BUF) {
+        input.buf[input.e++ % INPUT_BUF] = c;
       }
       break;
     case KEY_UP:
@@ -344,6 +354,7 @@ consoleintr(int (*getc)(void))
 
             history_pos = -1;       // leave history browse mode
             line_start = input.e;   // next char is start of new line
+            cursor = input.e;
           }
         }
       }
@@ -416,6 +427,12 @@ consoleinit(void)
   devsw[CONSOLE].write = consolewrite;
   devsw[CONSOLE].read = consoleread;
   cons.locking = 1;
+
+
+  input.r = input.w = input.e = 0;
+  line_start = 0;
+  cursor = 0;
+
 
   ioapicenable(IRQ_KBD, 0);
 }

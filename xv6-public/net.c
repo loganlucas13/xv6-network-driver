@@ -114,7 +114,7 @@ in_cksum(const unsigned char *addr, int len)
 uint64
 sys_send(void)
 {
-  struct proc *p = proc;
+  struct proc *p = myproc();
   int sport;
   int dst;
   int dport;
@@ -162,13 +162,18 @@ sys_send(void)
 
   char *payload = (char *)(udp + 1);
   // x86-64 note: pass the process page table used in your fork (pgdir).
-if(copyin_user(p->pgdir, payload, bufaddr, len) < 0){
-  kfree(buf);
-  cprintf("send: copyin failed\n");
-  return (uint64)-1;
-}
-
-  e1000_transmit(buf, total);
+  cprintf("sys_send: p=%p pgdir=%p bufaddr=%p len=%d\n",
+          p, p->pgdir, (void*)bufaddr, len);
+  cprintf("sys_send: payload=%p buf=%p\n", payload, buf);
+  if(copyin_user(p->pgdir, payload, bufaddr, len) < 0){
+    kfree(buf);
+    cprintf("send: copyin failed\n");
+    return (uint64)-1;
+  }
+  cprintf("sys_send: about to e1000_transmit buf=%p total=%d\n", buf, total);
+  int txret = e1000_transmit(buf, total);
+  cprintf("sys_send: e1000_transmit ret=%d\n", txret);
+  //e1000_transmit(buf, total);
   return 0;
 }
 
@@ -256,8 +261,12 @@ copyin_user(pml4e_t *pgdir, void *dst, addr_t srcva, uint64 len)
 {
   char *d = (char *)dst;
 
+  cprintf("copyin_user: pgdir=%p srcva=%p len=%d\n",
+          pgdir, (void*)srcva, (int)len);
+
   while (len > 0) {
     char *k = uva2ka(pgdir, (char *)srcva);
+    cprintf("copyin_user: uva2ka -> k=%p\n", k);
     if (k == 0)
       return -1;
 
@@ -265,7 +274,11 @@ copyin_user(pml4e_t *pgdir, void *dst, addr_t srcva, uint64 len)
     uint n   = PGSIZE - off;
     if (n > len) n = (uint)len;
 
+    cprintf("copyin_user: memmove dst=%p src=%p n=%d\n",
+            d, k + off, n);
+
     memmove(d, k + off, n);
+
     d     += n;
     srcva += n;
     len   -= n;
