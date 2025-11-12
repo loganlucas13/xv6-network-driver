@@ -80,15 +80,19 @@ kalloc(void)
 
   if(kmem.use_lock)
     acquire(&kmem.lock);
+
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
-  else {
-    panic("Out of memory!");
-  }
-  
+
   if(kmem.use_lock)
     release(&kmem.lock);
+
+  if(r == 0)
+    return 0;               // <-- return failure instead of panic
+
+
+
   return (char*)r;
 }
 

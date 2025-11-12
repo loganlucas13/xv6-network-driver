@@ -9,19 +9,24 @@ Seems we are SMP, ncpu = 2
 
 cpu0: starting Fall 2025 xv6
 
+pci: found e1000 device at slot 3
+e1000_init: ENTER xregs=ffff8000feb80000
+e1000_init: STATUS=0x80080783
 cpu1: starting
 cpu0: starting
 init: starting sh
 $ nettest grade
-cpu0: panic: Out of memory!
- ffff800000100cd0
- ffff800000104390
- ffff80000010b86e
- ffff8000001066b3
- ffff80000010963f
- ffff80000010820f
- ffff80000010981d
- 0000000000000000
- 0000000000000000
- 0000000000000000
-qemu: terminating on signal 15 from pid 8552 (make)
+nettest grade
+txone: sending one packet
+arp_rx: received an ARP packet
+ip_rx: received an IP packet
+ping0: starting
+ping0: recv() failed
+ping1: starting
+ping1: recv() failed
+ping2: starting
+ping2: recv() failed
+ping3: starting
+ping3: recv() failed
+pid 3 nettest: trap 14 err 5 on cpu 0 rip 0x000000000000321b addr 0x0000000000006f98--kill proc
+$ qemu: terminating on signal 15 from pid 21224 (make)

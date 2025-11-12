@@ -70,6 +70,15 @@ trap(struct trapframe *tf)
     uartintr();
     lapiceoi();
     break;
+
+    // *** new case for e1000 ***
+  case T_IRQ0 + IRQ_E1000:
+    e1000_intr();   // handle NIC interrupt (calls e1000_recv)
+    lapiceoi();
+    break;
+  // **************************
+
+  
   case T_IRQ0 + 7:
   case T_IRQ0 + IRQ_SPURIOUS:
     cprintf("cpu%d: spurious interrupt at %p:%p\n",

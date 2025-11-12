@@ -243,3 +243,6 @@ CFLAGS += -DNET_TESTS_PORT=$(NETTEST_PORT)
 # Print the current GDB port (used by gradelib.py)
 print-gdbport:
 	@echo $(GDBPORT)
+
+grade:
+	python3 grade-lab-net
