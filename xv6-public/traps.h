@@ -31,4 +31,4 @@
 #define IRQ_ERROR       19
 #define IRQ_SPURIOUS    31
 
-#define IRQ_E1000       11 
+#define IRQ_E1000       11      // networking

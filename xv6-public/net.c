@@ -9,13 +9,13 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "net.h"
-#include "mmu.h"  
+#include "mmu.h"
 #include "e1000_dev.h"
-
 
 // Helper to copy from a user virtual address into a kernel buffer,
 // using the process's page table (pgdir).
-static int copyin_user(pml4e_t *pgdir, void *dst, addr_t srcva, uint64 len);
+static int
+copyin_user(pml4e_t* pgdir, void* dst, addr_t srcva, uint64 len);
 
 // ----------------------------------------------------------------------
 // Global network configuration
@@ -23,7 +23,7 @@ static int copyin_user(pml4e_t *pgdir, void *dst, addr_t srcva, uint64 len);
 
 // xv6's Ethernet (MAC) address.
 // This must match what QEMU expects for the guest NIC.
-static uchar  local_mac[ETHADDR_LEN] = { 0x52, 0x54, 0x00, 0x12, 0x34, 0x56 };
+static uchar local_mac[ETHADDR_LEN] = {0x52, 0x54, 0x00, 0x12, 0x34, 0x56};
 
 // xv6's IP address: 10.0.2.15
 // MAKE_IP_ADDR encodes it in a 32-bit integer in network order layout.
@@ -31,16 +31,15 @@ static uint32 local_ip = MAKE_IP_ADDR(10, 0, 2, 15);
 
 // QEMU “host” MAC address (the other endpoint of the virtual link).
 // This is where we send Ethernet frames destined to the outside world.
-static uchar host_mac[ETHADDR_LEN] = { 0x52, 0x55, 0x0a, 0x00, 0x02, 0x02 };
+static uchar host_mac[ETHADDR_LEN] = {0x52, 0x55, 0x0a, 0x00, 0x02, 0x02};
 
 // Lock to protect global network data structures (e.g., UDP port queues).
 static struct spinlock netlock;
 
 void
-netinit(void)
-{
-  // Initialize the global network spinlock.
-  initlock(&netlock, "netlock");
+netinit(void) {
+    // Initialize the global network spinlock.
+    initlock(&netlock, "netlock");
 }
 
 //
@@ -52,13 +51,11 @@ netinit(void)
 // Return value is passed back to user space (0 for success, -1 on error).
 // ----------------------------------------------------------------------
 uint64
-sys_bind(void)
-{
-  //
-  // Your code here
-
-  //
-  return (uint64)-1;
+sys_bind(void) {
+    //
+    // Our code will go here.
+    //
+    return (uint64)-1;
 }
 
 //
@@ -71,16 +68,12 @@ sys_bind(void)
 
 // ----------------------------------------------------------------------
 uint64
-sys_unbind(void)
-{
-  //
-  // Your code here.
-// 
-  return 0;
+sys_unbind(void) {
+    //
+    // Our code will go here.
+    //
+    return 0;
 }
-
-
-
 
 //
 // ----------------------------------------------------------------------
@@ -93,13 +86,11 @@ sys_unbind(void)
 // bind(dport) must have been called before recv().
 // ----------------------------------------------------------------------
 uint64
-sys_recv(void)
-{
-  //
-  // Your code here
-
-  //
-  return (uint64)-1;
+sys_recv(void) {
+    //
+    // Our code will go here.
+    //
+    return (uint64)-1;
 }
 
 // ----------------------------------------------------------------------
@@ -111,30 +102,29 @@ sys_recv(void)
 // This implementation is borrowed from FreeBSD's ping.c.
 // ----------------------------------------------------------------------
 static unsigned short
-in_cksum(const unsigned char *addr, int len)
-{
-  int nleft = len;
-  const unsigned short *w = (const unsigned short *)addr;
-  unsigned int sum = 0;
-  unsigned short answer = 0;
+in_cksum(const unsigned char* addr, int len) {
+    int nleft = len;
+    const unsigned short* w = (const unsigned short*)addr;
+    unsigned int sum = 0;
+    unsigned short answer = 0;
 
-  // Add 16-bit words to a 32-bit accumulator
-  while (nleft > 1)  {
-    sum += *w++;
-    nleft -= 2;
-  }
+    // Add 16-bit words to a 32-bit accumulator
+    while (nleft > 1) {
+        sum += *w++;
+        nleft -= 2;
+    }
 
-  // If there's a remaining odd byte, pad it with zero and add
-  if (nleft == 1) {
-    *(unsigned char *)(&answer) = *(const unsigned char *)w;
-    sum += answer;
-  }
+    // If there's a remaining odd byte, pad it with zero and add
+    if (nleft == 1) {
+        *(unsigned char*)(&answer) = *(const unsigned char*)w;
+        sum += answer;
+    }
 
-  // Fold 32-bit sum to 16 bits, then invert
-  sum = (sum & 0xffff) + (sum >> 16);
-  sum += (sum >> 16);
-  answer = (unsigned short)~sum;
-  return answer;
+    // Fold 32-bit sum to 16 bits, then invert
+    sum = (sum & 0xffff) + (sum >> 16);
+    sum += (sum >> 16);
+    answer = (unsigned short)~sum;
+    return answer;
 }
 
 //
@@ -155,85 +145,86 @@ in_cksum(const unsigned char *addr, int len)
 // into a freshly allocated kernel page and hands it to the e1000 driver.
 // ----------------------------------------------------------------------
 uint64
-sys_send(void)
-{
-  struct proc *p = myproc();   // current process (for its page table)
-  int sport;
-  int dst;
-  int dport;
-  uint64 bufaddr;   // user virtual address of payload
-  int len;
+sys_send(void) {
+    struct proc* p = myproc();  // current process (for its page table)
+    int sport;
+    int dst;
+    int dport;
+    uint64 bufaddr;  // user virtual address of payload
+    int len;
 
-  // Fetch syscall arguments from user registers.
-  argint(0, &sport);
-  argint(1, &dst);
-  argint(2, &dport);
-  argaddr(3, &bufaddr);
-  argint(4, &len);
+    // Fetch syscall arguments from user registers.
+    argint(0, &sport);
+    argint(1, &dst);
+    argint(2, &dport);
+    argaddr(3, &bufaddr);
+    argint(4, &len);
 
-  // Total bytes we will transmit: Ethernet + IP + UDP + payload.
-  int total = len + sizeof(struct eth) + sizeof(struct ip) + sizeof(struct udp);
-  if(total > PGSIZE)
-    // For simplicity, we insist that one whole packet fits in a single page.
-    return (uint64)-1;
+    // Total bytes we will transmit: Ethernet + IP + UDP + payload.
+    int total =
+        len + sizeof(struct eth) + sizeof(struct ip) + sizeof(struct udp);
+    if (total > PGSIZE)
+        // For simplicity, we insist that one whole packet fits in a single
+        // page.
+        return (uint64)-1;
 
-  // Allocate a page for the outgoing packet.
-  char *buf = kalloc();
-  if(buf == 0){
-    cprintf("sys_send: kalloc failed\n");
-    return (uint64)-1;
-  }
-  memset(buf, 0, PGSIZE);  // Clear for cleanliness/debuggability.
+    // Allocate a page for the outgoing packet.
+    char* buf = kalloc();
+    if (buf == 0) {
+        cprintf("sys_send: kalloc failed\n");
+        return (uint64)-1;
+    }
+    memset(buf, 0, PGSIZE);  // Clear for cleanliness/debuggability.
 
-  // ---------------------- Ethernet header -----------------------
-  struct eth *eth = (struct eth *) buf;
-  // destination MAC = host (QEMU) MAC
-  memmove(eth->dhost, host_mac, ETHADDR_LEN);
-  // source MAC = xv6's MAC
-  memmove(eth->shost, local_mac, ETHADDR_LEN);
-  // EtherType = IPv4 (in network byte order)
-  eth->type = htons(ETHTYPE_IP);
+    // ---------------------- Ethernet header -----------------------
+    struct eth* eth = (struct eth*)buf;
+    // destination MAC = host (QEMU) MAC
+    memmove(eth->dhost, host_mac, ETHADDR_LEN);
+    // source MAC = xv6's MAC
+    memmove(eth->shost, local_mac, ETHADDR_LEN);
+    // EtherType = IPv4 (in network byte order)
+    eth->type = htons(ETHTYPE_IP);
 
-  // ------------------------ IP header ---------------------------
-  struct ip *ip = (struct ip *)(eth + 1);  // immediately after Ethernet
-  ip->ip_vhl = 0x45; // version 4, header length 5 * 4 bytes (20 bytes total)
-  ip->ip_tos = 0;    // type of service (unused)
-  ip->ip_len = htons(sizeof(struct ip) + sizeof(struct udp) + len);
-  ip->ip_id  = 0;    // no fragmentation logic in this lab
-  ip->ip_off = 0;    // no fragmentation
-  ip->ip_ttl = 100;  // time to live
-  ip->ip_p   = IPPROTO_UDP;              // UDP payload
-  ip->ip_src = htonl(local_ip);          // our IP in network order
-  ip->ip_dst = htonl(dst);               // destination IP in network order
-  // Compute IPv4 header checksum over the 20-byte header.
-  ip->ip_sum = in_cksum((const unsigned char *)ip, sizeof(*ip));
+    // ------------------------ IP header ---------------------------
+    struct ip* ip = (struct ip*)(eth + 1);  // immediately after Ethernet
+    ip->ip_vhl = 0x45;  // version 4, header length 5 * 4 bytes (20 bytes total)
+    ip->ip_tos = 0;     // type of service (unused)
+    ip->ip_len = htons(sizeof(struct ip) + sizeof(struct udp) + len);
+    ip->ip_id = 0;                 // no fragmentation logic in this lab
+    ip->ip_off = 0;                // no fragmentation
+    ip->ip_ttl = 100;              // time to live
+    ip->ip_p = IPPROTO_UDP;        // UDP payload
+    ip->ip_src = htonl(local_ip);  // our IP in network order
+    ip->ip_dst = htonl(dst);       // destination IP in network order
+    // Compute IPv4 header checksum over the 20-byte header.
+    ip->ip_sum = in_cksum((const unsigned char*)ip, sizeof(*ip));
 
-  // ------------------------ UDP header --------------------------
-  struct udp *udp = (struct udp *)(ip + 1);  // right after IP header
-  udp->sport = htons((ushort)sport);                    // source port
-  udp->dport = htons((ushort)dport);                    // dest port
-  udp->ulen  = htons((ushort)(len + sizeof(struct udp))); // header + data
-  // UDP checksum is optional; we leave udp->sum as 0.
+    // ------------------------ UDP header --------------------------
+    struct udp* udp = (struct udp*)(ip + 1);  // right after IP header
+    udp->sport = htons((ushort)sport);        // source port
+    udp->dport = htons((ushort)dport);        // dest port
+    udp->ulen = htons((ushort)(len + sizeof(struct udp)));  // header + data
+    // UDP checksum is optional; we leave udp->sum as 0.
 
-  // ------------------------ Payload -----------------------------
-  char *payload = (char *)(udp + 1);
+    // ------------------------ Payload -----------------------------
+    char* payload = (char*)(udp + 1);
 
-  // Copy payload from user memory into kernel buffer.
-  // We must translate user virtual addresses via the process's pgdir.
-  if(copyin_user(p->pgdir, payload, bufaddr, len) < 0){
-    kfree(buf);
-    cprintf("send: copyin failed\n");
-    return (uint64)-1;
-  }
+    // Copy payload from user memory into kernel buffer.
+    // We must translate user virtual addresses via the process's pgdir.
+    if (copyin_user(p->pgdir, payload, bufaddr, len) < 0) {
+        kfree(buf);
+        cprintf("send: copyin failed\n");
+        return (uint64)-1;
+    }
 
-  // Hand the fully built packet to the e1000 NIC driver.
-  int txret = e1000_transmit(buf, total);
-  // Note: on success, e1000_transmit takes ownership and later frees buf;
-  // on failure (txret < 0) we should technically free buf, but for this
-  // lab we ignore it and just return 0/-1 as needed.
+    // Hand the fully built packet to the e1000 NIC driver.
+    int txret = e1000_transmit(buf, total);
+    // Note: on success, e1000_transmit takes ownership and later frees buf;
+    // on failure (txret < 0) we should technically free buf, but for this
+    // lab we ignore it and just return 0/-1 as needed.
 
-  (void)txret;   // txret currently unused in this version
-  return 0;
+    (void)txret;  // txret currently unused in this version
+    return 0;
 }
 
 //
@@ -248,17 +239,14 @@ sys_send(void)
 
 // ----------------------------------------------------------------------
 void
-ip_rx(char *buf, int len)
-{
-  // don't delete this printf; make grade depends on it.
-  static int seen_ip = 0;
-  if(seen_ip == 0)
-    cprintf("ip_rx: received an IP packet\n");
-  seen_ip = 1;
+ip_rx(char* buf, int len) {
+    // don't delete this printf; make grade depends on it.
+    static int seen_ip = 0;
+    if (seen_ip == 0) cprintf("ip_rx: received an IP packet\n");
+    seen_ip = 1;
 
-  //
-  // Your code here 
-
+    //
+    // Our code will go here.
 }
 
 //
@@ -272,54 +260,52 @@ ip_rx(char *buf, int len)
 // packets to xv6. It is not a full ARP implementation.
 // ----------------------------------------------------------------------
 void
-arp_rx(char *inbuf)
-{
-  static int seen_arp = 0;
+arp_rx(char* inbuf) {
+    static int seen_arp = 0;
 
-  // Only handle the first ARP we see; afterwards, just drop & free.
-  if(seen_arp){
+    // Only handle the first ARP we see; afterwards, just drop & free.
+    if (seen_arp) {
+        kfree(inbuf);
+        return;
+    }
+    cprintf("arp_rx: received an ARP packet\n");
+    seen_arp = 1;
+
+    struct eth* ineth = (struct eth*)inbuf;
+    struct arp* inarp = (struct arp*)(ineth + 1);
+
+    // Allocate a new buffer for the ARP reply.
+    char* buf = kalloc();
+    if (buf == 0) panic("send_arp_reply");
+
+    // ---------------------- Ethernet header -----------------------
+    struct eth* eth = (struct eth*)buf;
+    // dest MAC = original sender's MAC
+    memmove(eth->dhost, ineth->shost, ETHADDR_LEN);
+    // src MAC = our MAC
+    memmove(eth->shost, local_mac, ETHADDR_LEN);
+    eth->type = htons(ETHTYPE_ARP);
+
+    // ------------------------ ARP header ---------------------------
+    struct arp* arp = (struct arp*)(eth + 1);
+    arp->hrd = htons(ARP_HRD_ETHER);  // hardware = Ethernet
+    arp->pro = htons(ETHTYPE_IP);     // protocol = IPv4
+    arp->hln = ETHADDR_LEN;           // MAC length = 6
+    arp->pln = sizeof(uint32);        // IPv4 length = 4
+    arp->op = htons(ARP_OP_REPLY);    // we are sending a reply
+
+    // sender hardware/IP = us (xv6)
+    memmove(arp->sha, local_mac, ETHADDR_LEN);
+    arp->sip = htonl(local_ip);
+
+    // target hardware = original sender
+    memmove(arp->tha, ineth->shost, ETHADDR_LEN);
+    // target IP = original sender's IP
+    arp->tip = inarp->sip;
+
+    // Transmit ARP reply and free the received buffer.
+    e1000_transmit(buf, sizeof(*eth) + sizeof(*arp));
     kfree(inbuf);
-    return;
-  }
-  cprintf("arp_rx: received an ARP packet\n");
-  seen_arp = 1;
-
-  struct eth *ineth = (struct eth *) inbuf;
-  struct arp *inarp = (struct arp *) (ineth + 1);
-
-  // Allocate a new buffer for the ARP reply.
-  char *buf = kalloc();
-  if(buf == 0)
-    panic("send_arp_reply");
-
-  // ---------------------- Ethernet header -----------------------
-  struct eth *eth = (struct eth *) buf;
-  // dest MAC = original sender's MAC
-  memmove(eth->dhost, ineth->shost, ETHADDR_LEN);
-  // src MAC = our MAC
-  memmove(eth->shost, local_mac, ETHADDR_LEN);
-  eth->type = htons(ETHTYPE_ARP);
-
-  // ------------------------ ARP header ---------------------------
-  struct arp *arp = (struct arp *)(eth + 1);
-  arp->hrd = htons(ARP_HRD_ETHER);   // hardware = Ethernet
-  arp->pro = htons(ETHTYPE_IP);      // protocol = IPv4
-  arp->hln = ETHADDR_LEN;            // MAC length = 6
-  arp->pln = sizeof(uint32);         // IPv4 length = 4
-  arp->op  = htons(ARP_OP_REPLY);    // we are sending a reply
-
-  // sender hardware/IP = us (xv6)
-  memmove(arp->sha, local_mac, ETHADDR_LEN);
-  arp->sip = htonl(local_ip);
-
-  // target hardware = original sender
-  memmove(arp->tha, ineth->shost, ETHADDR_LEN);
-  // target IP = original sender's IP
-  arp->tip = inarp->sip;
-
-  // Transmit ARP reply and free the received buffer.
-  e1000_transmit(buf, sizeof(*eth) + sizeof(*arp));
-  kfree(inbuf);
 }
 
 //
@@ -334,24 +320,24 @@ arp_rx(char *inbuf)
 // If we don't recognize the frame, we just drop and free it.
 // ----------------------------------------------------------------------
 void
-net_rx(char *buf, int len)
-{
-  struct eth *eth = (struct eth *) buf;
+net_rx(char* buf, int len) {
+    struct eth* eth = (struct eth*)buf;
 
-  if(len >= (int)(sizeof(struct eth) + sizeof(struct arp)) &&
-     ntohs(eth->type) == ETHTYPE_ARP){
-    // Ethernet type = ARP
-    arp_rx(buf);
-  } else if(len >= (int)(sizeof(struct eth) + sizeof(struct ip)) &&
-            ntohs(eth->type) == ETHTYPE_IP){
-    // Ethernet type = IPv4
-    ip_rx(buf, len);
-  } else {
-    // Unknown or too short; just drop.
-    kfree(buf);
-  }
+    if (len >= (int)(sizeof(struct eth) + sizeof(struct arp)) &&
+        ntohs(eth->type) == ETHTYPE_ARP) {
+        // Ethernet type = ARP
+        arp_rx(buf);
+    }
+    else if (len >= (int)(sizeof(struct eth) + sizeof(struct ip)) &&
+             ntohs(eth->type) == ETHTYPE_IP) {
+        // Ethernet type = IPv4
+        ip_rx(buf, len);
+    }
+    else {
+        // Unknown or too short; just drop.
+        kfree(buf);
+    }
 }
-
 
 // ----------------------------------------------------------------------
 // copyin_user (file-local helper)
@@ -366,33 +352,32 @@ net_rx(char *buf, int len)
 // a kernel direct-mapped address via uva2ka(), then memmove() the chunk.
 // ----------------------------------------------------------------------
 static int
-copyin_user(pml4e_t *pgdir, void *dst, addr_t srcva, uint64 len)
-{
-  char *d = (char *)dst;
+copyin_user(pml4e_t* pgdir, void* dst, addr_t srcva, uint64 len) {
+    char* d = (char*)dst;
 
-  // cprintf("copyin_user: pgdir=%p srcva=%p len=%d\n",  pgdir, (void*)srcva, (int)len);
+    // cprintf("copyin_user: pgdir=%p srcva=%p len=%d\n",  pgdir, (void*)srcva,
+    // (int)len);
 
-  while (len > 0) {
-    // Translate user virtual address -> kernel address.
-    char *k = uva2ka(pgdir, (char *)srcva);
-    // cprintf("copyin_user: uva2ka -> k=%p\n", k);
-    if (k == 0)
-      return -1;  // invalid user address
+    while (len > 0) {
+        // Translate user virtual address -> kernel address.
+        char* k = uva2ka(pgdir, (char*)srcva);
+        // cprintf("copyin_user: uva2ka -> k=%p\n", k);
+        if (k == 0) return -1;  // invalid user address
 
-    // Compute offset within this page and how many bytes we can
-    // copy before crossing into the next page.
-    uint off = (uint)((addr_t)srcva & (PGSIZE - 1));
-    uint n   = PGSIZE - off;
-    if (n > len) n = (uint)len;
+        // Compute offset within this page and how many bytes we can
+        // copy before crossing into the next page.
+        uint off = (uint)((addr_t)srcva & (PGSIZE - 1));
+        uint n = PGSIZE - off;
+        if (n > len) n = (uint)len;
 
-    // cprintf("copyin_user: memmove dst=%p src=%p n=%d\n", d, k + off, n);
+        // cprintf("copyin_user: memmove dst=%p src=%p n=%d\n", d, k + off, n);
 
-    // Copy that chunk.
-    memmove(d, k + off, n);
+        // Copy that chunk.
+        memmove(d, k + off, n);
 
-    d     += n;
-    srcva += n;
-    len   -= n;
-  }
-  return 0;
+        d += n;
+        srcva += n;
+        len -= n;
+    }
+    return 0;
 }
