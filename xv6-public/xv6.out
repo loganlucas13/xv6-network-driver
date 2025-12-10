@@ -17,8 +17,8 @@ cpu0: starting
 init: starting sh
 $ nettest grade
 nettest grade
-2025-12-09 21:31:12.650 qemu-system-x86_64[22086:106834878] +[IMKClient subclass]: chose IMKClient_Legacy
-2025-12-09 21:31:12.650 qemu-system-x86_64[22086:106834878] +[IMKInputSession subclass]: chose IMKInputSession_Legacy
+2025-12-10 00:34:57.625 qemu-system-x86_64[52771:107027839] +[IMKClient subclass]: chose IMKClient_Legacy
+2025-12-10 00:34:57.625 qemu-system-x86_64[52771:107027839] +[IMKInputSession subclass]: chose IMKInputSession_Legacy
 txone: sending one packet
 arp_rx: received an ARP packet
 ip_rx: received an IP packet
@@ -31,4 +31,4 @@ ping2: OK
 ping3: starting
 ping3: OK
 pid 3 nettest: trap 14 err 7 on cpu 0 rip 0x00000000000031e6 addr 0x0000000000006030--kill proc
-$ qemu-system-x86_64: terminating on signal 15 from pid 22059 (<unknown process>)
+$ qemu-system-x86_64: terminating on signal 15 from pid 52719 (<unknown process>)

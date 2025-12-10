@@ -94,8 +94,18 @@ sys_bind(void) {
 
     acquire(&netlock);
 
+    // port has already been bound
+    if (find_port_queue((ushort)port == 0)) {
+        release(&netlock);
+        return (uint64)-1;
+    }
+
     // allocate a page for the port_queue struct
     struct port_queue* pq = (struct port_queue*)kalloc();
+    if (pq == 0) {
+        release(&netlock);
+        return (uint64)-1;
+    }
 
     memset(pq, 0, PGSIZE);
     pq->port = (ushort)port;
@@ -156,6 +166,11 @@ sys_recv(void) {
 
     struct port_queue* pq = find_port_queue(port);
 
+    if (!pq) {
+        release(&netlock);
+        return (uint64)-1;
+    }
+
     // wait until there is a packet
     while (pq->count == 0) {
         sleep((void*)pq, &netlock);  // releases netlock internally
@@ -193,6 +208,8 @@ sys_recv(void) {
     // how many payload bytes we will copy
     int tocpy = pkt->payload_len;
     if (tocpy > maxlen) tocpy = maxlen;
+    if (tocpy < 0) tocpy = 0;
+    if (tocpy > 1500) tocpy = 1500;
     if (tocpy > 0) {
         if (copyout(p->pgdir, bufaddr, pkt->payload, (uint64)tocpy) < 0) {
             // cleanup
@@ -360,6 +377,12 @@ ip_rx(char* buf, int len) {
 
     struct eth* eth = (struct eth*)buf;
     struct ip* ip = (struct ip*)(eth + 1);
+
+    // not UDP
+    if (ip->ip_p != IPPROTO_UDP) {
+        kfree(buf);
+        return;
+    }
 
     int ihl = (ip->ip_vhl & 0x0f);  // header length in 32-bit words
 
