@@ -10,23 +10,25 @@ Seems we are SMP, ncpu = 2
 cpu0: starting Fall 2025 xv6
 
 pci: found e1000 device at slot 3
-e1000_init: ENTER xregs=ffff8000feb80000
+e1000_init: ENTER xregs=ffff8000febc0000
 e1000_init: STATUS=0x80080783
 cpu1: starting
 cpu0: starting
 init: starting sh
 $ nettest grade
 nettest grade
+2025-12-09 21:31:12.650 qemu-system-x86_64[22086:106834878] +[IMKClient subclass]: chose IMKClient_Legacy
+2025-12-09 21:31:12.650 qemu-system-x86_64[22086:106834878] +[IMKInputSession subclass]: chose IMKInputSession_Legacy
 txone: sending one packet
 arp_rx: received an ARP packet
 ip_rx: received an IP packet
 ping0: starting
-ping0: recv() failed
+ping0: OK
 ping1: starting
-ping1: recv() failed
+ping1: OK
 ping2: starting
-ping2: recv() failed
+ping2: OK
 ping3: starting
-ping3: recv() failed
-pid 3 nettest: trap 14 err 5 on cpu 0 rip 0x000000000000321b addr 0x0000000000006f98--kill proc
-$ qemu: terminating on signal 15 from pid 21224 (make)
+ping3: OK
+pid 3 nettest: trap 14 err 7 on cpu 0 rip 0x00000000000031e6 addr 0x0000000000006030--kill proc
+$ qemu-system-x86_64: terminating on signal 15 from pid 22059 (<unknown process>)

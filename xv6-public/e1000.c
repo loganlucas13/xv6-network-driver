@@ -111,14 +111,10 @@ e1000_init(uint32* xregs)
     cprintf("e1000_init: STATUS=0x%x\n", status);
 
     uint32 tdt_before = regs[E1000_TDT];
-    // cprintf("e1000_init: TDT before init=0x%x\n", tdt_before);
 }
 
 int
 e1000_transmit(char* buf, int len) {
-    //
-    // Our code will go here.
-    //
     // buf contains an ethernet frame; program it into
     // the TX descriptor ring so that the e1000 sends it. Stash
     // a pointer so that it can be freed after send completes.
@@ -199,9 +195,6 @@ e1000_transmit(char* buf, int len) {
 // ------------------------------------------------------------
 static void
 e1000_recv(void) {
-    //
-    // Our code will go here.
-    //
     // Check for packets that have arrived from the e1000.
     // Create and deliver a buf for each packet (using net_rx()).
     //
@@ -271,8 +264,6 @@ e1000_recv(void) {
         // net_rx() will take ownership of dst and eventually free it.
         // --------------------------------------------------------
         if (dst != 0) net_rx(dst, len);
-
-        // Loop again to process the next packet (if available)
     }
 }
 
