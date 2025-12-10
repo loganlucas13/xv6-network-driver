@@ -626,26 +626,47 @@ encode_qname(char *qn, char *host)
 void
 decode_qname(char *qn, int max)
 {
+  char *qn0 = qn;
   char *qnMax = qn + max;
+
   while (1) {
     if (qn >= qnMax) {
       uprintf("invalid DNS reply\n");
       exit();
     }
-    int l = *qn;
-    if (l == 0)
-      break;
-    for (int i = 0; i < l; i++) {
-      *qn = *(qn+1);
+
+    uchar c = *qn;
+
+    // END of name
+    if (c == 0) {
       qn++;
+      break;
     }
-    *qn++ = '.';
+
+    // DNS NAME COMPRESSION POINTER (11xxxxxx)
+    if ((c & 0xC0) == 0xC0) {
+      // pointer is 2 bytes — stop here
+      qn += 2;
+      break;
+    }
+
+    // NORMAL LABEL
+    int len = c;
+    qn++;
+
+    if (len > 63 || qn + len > qnMax) {
+      uprintf("invalid DNS reply\n");
+      exit();
+    }
+
+    qn += len;
   }
 }
 
+
 // Make a DNS request
 int
-dns_req(uint *obuf)
+dns_req(uchar *obuf)
 {
   int len = 0;
 
@@ -671,14 +692,87 @@ dns_req(uint *obuf)
   return len;
 }
 
+
+
+
+
+
+// Return how many bytes the encoded DNS name at qn occupies in the packet.
+// Handles normal labels and compression pointers, and checks bounds.
+static int
+skip_qname(char *qn, int max)
+{
+  char *p   = qn;
+  char *end = qn + max;
+
+  while (1) {
+    if (p >= end) {
+      uprintf("invalid DNS reply\n");
+      exit();
+    }
+
+    uchar c = *p;
+
+    // end of name
+    if (c == 0) {
+      p++;         // include the terminating 0
+      break;
+    }
+
+    // compression pointer: 11xxxxxx xx......
+    if ((c & 0xC0) == 0xC0) {
+      if (p + 1 >= end) {
+        uprintf("invalid DNS reply\n");
+        exit();
+      }
+      p += 2;      // name is just these 2 bytes
+      break;
+    }
+
+    // normal label
+    int len = c;
+    p++;          // skip length byte
+    if (len > 63 || p + len > end) {
+      uprintf("invalid DNS reply\n");
+      exit();
+    }
+    p += len;     // skip label characters
+  }
+
+  return (int)(p - qn);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Process DNS response
 int
-dns_rep(uint *ibuf, int cc)
+dns_rep(uchar *ibuf, int cc)
 {
   struct dns *hdr = (struct dns *) ibuf;
   int len;
   char *qname = 0;
   int record = 0;
+
+  /* uprintf("dns_dbg: cc=%d sizeof(dns)=%d sizeof(q)=%d sizeof(data)=%d\n",
+        cc,
+        (int)sizeof(struct dns),
+        (int)sizeof(struct dns_question),
+        (int)sizeof(struct dns_data)); DEBUG PURPOSES */
+
 
   if (cc < (int)sizeof(struct dns)) {
     uprintf("DNS reply too short\n");
@@ -703,10 +797,10 @@ dns_rep(uint *ibuf, int cc)
   len = sizeof(struct dns);
 
   for (int i = 0; i < ntohs(hdr->qdcount); i++) {
-    char *qn = (char *) (ibuf+len);
-    qname = qn;
-    decode_qname(qn, cc - len);
-    len += strlen(qn)+1;
+    char *qn = (char *)(ibuf + len);
+    qname = qn; // still keep pointer if you want to print later
+    int consumed = skip_qname(qn, cc - len);
+    len += consumed;
     len += sizeof(struct dns_question);
   }
 
@@ -716,22 +810,23 @@ dns_rep(uint *ibuf, int cc)
       return 0;
     }
 
-    char *qn = (char *) (ibuf+len);
+    char *qn = (char *) (ibuf + len);
 
     if ((int)qn[0] > 63) {  // compression?
-      qn = (char *)(ibuf+qn[1]);
+      // name is a 2-byte pointer in the packet
+      qn = (char *)(ibuf + qn[1]);  // just for printing
       len += 2;
     } else {
-      decode_qname(qn, cc - len);
-      len += strlen(qn)+1;
+      int consumed = skip_qname(qn, cc - len);
+      len += consumed;
     }
 
-    struct dns_data *d = (struct dns_data *) (ibuf+len);
+    struct dns_data *d = (struct dns_data *) (ibuf + len);
     len += sizeof(struct dns_data);
     if (ntohs(d->type) == ARECORD && ntohs(d->len) == 4) {
       record = 1;
       uprintf("DNS arecord for %s is ", qname ? qname : "" );
-      uint *ip = (ibuf+len);
+      uchar *ip = ibuf + len;
       uprintf("%d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
       if (ip[0] != 128 || ip[1] != 52 || ip[2] != 129 || ip[3] != 126) {
         uprintf("dns: wrong ip address");
@@ -743,14 +838,14 @@ dns_rep(uint *ibuf, int cc)
 
   // needed for DNS servers with EDNS support
   for (int i = 0; i < ntohs(hdr->arcount); i++) {
-    char *qn = (char *) (ibuf+len);
+    char *qn = (char *) (ibuf + len);
     if (*qn != 0) {
       uprintf("dns: invalid name for EDNS\n");
       return 0;
     }
     len += 1;
 
-    struct dns_data *d = (struct dns_data *) (ibuf+len);
+    struct dns_data *d = (struct dns_data *) (ibuf + len);
     len += sizeof(struct dns_data);
     if (ntohs(d->type) != 41) {
       uprintf("dns: invalid type for EDNS\n");
@@ -775,8 +870,8 @@ int
 dns(void)
 {
 #define N 1000
-  uint obuf[N];
-  uint ibuf[N];
+  uchar obuf[N];
+  uchar ibuf[N];
   uint32 dst;
   int len;
 

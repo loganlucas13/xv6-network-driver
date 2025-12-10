@@ -181,6 +181,6 @@ struct dns_question {
 struct dns_data {
     ushort type;   // record type (e.g., ARECORD)
     ushort class;  // record class (e.g., QCLASS)
-    uint32 ttl;    // time-to-live in seconds
+    uint ttl;    // time-to-live in seconds
     ushort len;    // length of the RDATA that follows
 } __attribute__((packed));

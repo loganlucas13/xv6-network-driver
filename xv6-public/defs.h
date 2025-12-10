@@ -328,3 +328,7 @@ void
 netinit(void);
 void
 net_rx(char* buf, int len);
+
+
+
+void net_debug(void);

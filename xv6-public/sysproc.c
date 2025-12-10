@@ -6,6 +6,10 @@
 #include "mmu.h"
 #include "proc.h"
 
+
+
+
+
 int
 sys_fork(void)
 {
@@ -15,6 +19,7 @@ sys_fork(void)
 int
 sys_exit(void)
 {
+ 
   exit();
   return 0;  // not reached
 }
